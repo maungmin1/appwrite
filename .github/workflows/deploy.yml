@@ -1,4 +1,4 @@
-name: Build and Release Appwrite VLESS (Compressed)
+name: Build and Release Appwrite VLESS (Final Fix)
 
 on:
   push:
@@ -14,39 +14,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install UPX
-        run: sudo apt-get install -y upx
+      - name: Install UPX and Unzip
+        run: sudo apt-get update && sudo apt-get install -y upx unzip
 
       - name: Download and Prepare Binaries
         run: |
           mkdir -p bin
           
-          # Xray ကို ဒေါင်းလုဒ်ဆွဲပြီး binary တစ်ခုတည်းကို ထုတ်ယူခြင်း
+          # 1. Download Xray
+          echo "Downloading Xray..."
           curl -L -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
           unzip -j xray.zip xray -d ./bin
           
-          # Cloudflared ကို ဒေါင်းလုဒ်ဆွဲခြင်း
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o ./bin/cloudflared
+          # 2. Download Cloudflared (Direct Link for stability)
+          echo "Downloading Cloudflared..."
+          curl -L -o ./bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           
-          # ဖိုင်တွေ ရှိမရှိ စစ်ဆေးခြင်း
-          ls -la ./bin/
+          # 3. Check if files exist before UPX
+          ls -lh ./bin/
           
-          # UPX ဖြင့် ချုံ့ခြင်း (ဖိုင်ဆိုဒ် လျော့သွားစေရန်)
-          upx --best ./bin/xray || echo "UPX xray failed"
-          upx --best ./bin/cloudflared || echo "UPX cloudflared failed"
+          # 4. UPX Compression (Only if files exist)
+          if [ -f "./bin/xray" ]; then upx --best ./bin/xray; fi
+          if [ -f "./bin/cloudflared" ]; then upx --best ./bin/cloudflared; fi
           
           chmod +x ./bin/*
-          rm xray.zip
+          rm -f xray.zip
 
       - name: Create Archive
         run: |
-          # ဖိုင်အားလုံး ရှိနေကြောင်း သေချာမှ tar လုပ်ပါ
-          if [ -f "main.js" ] && [ -d "bin" ]; then
-            tar -czvf Appwrite.tar.gz main.js package.json bin/
-          else
-            echo "❌ Required files are missing!"
-            exit 1
-          fi
+          echo "Current directory contents:"
+          ls -F
+          # ဖိုင်တွေကို အတင်းအကျပ် ရှာပြီး Archive လုပ်ခြင်း
+          tar -cvzf Appwrite.tar.gz main.js package.json bin/
+          
+          echo "Archive Size:"
+          du -h Appwrite.tar.gz
 
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
