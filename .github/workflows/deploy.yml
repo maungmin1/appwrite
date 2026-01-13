@@ -1,4 +1,4 @@
-name: Build and Release Appwrite VLESS
+name: Build and Release Appwrite VLESS (Compressed)
 
 on:
   push:
@@ -14,19 +14,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Binaries
+      - name: Install UPX
+        run: sudo apt-get install -y upx
+
+      - name: Download and Compress Binaries
         run: |
           mkdir -p bin
-          # Download Xray
-          curl -L -H "Cache-Control: no-cache" -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
-          unzip xray.zip xray -d ./bin
-          # Download Cloudflared
+          # Download Xray (Linux 64-bit)
+          curl -L -O https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip Xray-linux-64.zip xray -d ./bin
+          
+          # Download Cloudflared (Linux 64-bit)
           curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o ./bin/cloudflared
+          
+          # UPX သုံးပြီး ဆိုဒ်ချုံ့ခြင်း
+          upx --best ./bin/xray
+          upx --best ./bin/cloudflared
+          
           chmod +x ./bin/cloudflared ./bin/xray
-          rm xray.zip
+          rm Xray-linux-64.zip
 
       - name: Create Archive
         run: |
+          # မလိုအပ်တဲ့ ဖိုင်တွေ မပါအောင် တိတိကျကျ ချုပ်ပါ
           tar -czf Appwrite.tar.gz main.js package.json bin/
           
       - name: Upload Release
