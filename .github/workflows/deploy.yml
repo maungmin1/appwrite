@@ -1,4 +1,4 @@
-name: Build and Release Appwrite VLESS (Final Fix)
+name: Build and Release Appwrite VLESS (Fixed)
 
 on:
   push:
@@ -14,41 +14,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install UPX and Unzip
+      - name: Install Tools
         run: sudo apt-get update && sudo apt-get install -y upx unzip
+
+      - name: Organize Files
+        run: |
+          # main.js နဲ့ package.json ကို ဘယ်နေရာမှာပဲရှိရှိ ရှာပြီး Root ကို ပို့မယ်
+          find . -name "main.js" -exec cp {} ./main.js \;
+          find . -name "package.json" -exec cp {} ./package.json \;
+          echo "✅ Files Organized"
 
       - name: Download and Prepare Binaries
         run: |
           mkdir -p bin
-          
           # 1. Download Xray
-          echo "Downloading Xray..."
           curl -L -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
           unzip -j xray.zip xray -d ./bin
           
-          # 2. Download Cloudflared (Direct Link for stability)
-          echo "Downloading Cloudflared..."
+          # 2. Download Cloudflared
           curl -L -o ./bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           
-          # 3. Check if files exist before UPX
-          ls -lh ./bin/
-          
-          # 4. UPX Compression (Only if files exist)
-          if [ -f "./bin/xray" ]; then upx --best ./bin/xray; fi
-          if [ -f "./bin/cloudflared" ]; then upx --best ./bin/cloudflared; fi
+          # 3. UPX Compression
+          upx --best ./bin/xray || true
+          upx --best ./bin/cloudflared || true
           
           chmod +x ./bin/*
           rm -f xray.zip
+          echo "✅ Binaries Ready"
 
       - name: Create Archive
         run: |
-          echo "Current directory contents:"
-          ls -F
           # ဖိုင်တွေကို အတင်းအကျပ် ရှာပြီး Archive လုပ်ခြင်း
-          tar -cvzf Appwrite.tar.gz main.js package.json bin/
+          # -h က Symbolic link တွေကိုပါ ထည့်ပေးဖို့ပါ
+          tar -cvzhf Appwrite.tar.gz main.js package.json bin/
           
-          echo "Archive Size:"
-          du -h Appwrite.tar.gz
+          echo "--- Final Package Contents ---"
+          tar -tf Appwrite.tar.gz
 
       - name: Create or Update Release
         uses: softprops/action-gh-release@v2
