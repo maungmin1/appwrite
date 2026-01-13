@@ -1,0 +1,38 @@
+name: Build and Release Appwrite VLESS
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Binaries
+        run: |
+          mkdir -p bin
+          # Download Xray
+          curl -L -H "Cache-Control: no-cache" -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip xray.zip xray -d ./bin
+          # Download Cloudflared
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o ./bin/cloudflared
+          chmod +x ./bin/cloudflared ./bin/xray
+          rm xray.zip
+
+      - name: Create Archive
+        run: |
+          tar -czf Appwrite.tar.gz main.js package.json bin/
+          
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "latest"
+          files: Appwrite.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
