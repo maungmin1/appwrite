@@ -17,32 +17,43 @@ jobs:
       - name: Install UPX
         run: sudo apt-get install -y upx
 
-      - name: Download and Compress Binaries
+      - name: Download and Prepare Binaries
         run: |
           mkdir -p bin
-          # Download Xray (Linux 64-bit)
-          curl -L -O https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
-          unzip Xray-linux-64.zip xray -d ./bin
           
-          # Download Cloudflared (Linux 64-bit)
+          # Xray ကို ဒေါင်းလုဒ်ဆွဲပြီး binary တစ်ခုတည်းကို ထုတ်ယူခြင်း
+          curl -L -o xray.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip -j xray.zip xray -d ./bin
+          
+          # Cloudflared ကို ဒေါင်းလုဒ်ဆွဲခြင်း
           curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o ./bin/cloudflared
           
-          # UPX သုံးပြီး ဆိုဒ်ချုံ့ခြင်း
-          upx --best ./bin/xray
-          upx --best ./bin/cloudflared
+          # ဖိုင်တွေ ရှိမရှိ စစ်ဆေးခြင်း
+          ls -la ./bin/
           
-          chmod +x ./bin/cloudflared ./bin/xray
-          rm Xray-linux-64.zip
+          # UPX ဖြင့် ချုံ့ခြင်း (ဖိုင်ဆိုဒ် လျော့သွားစေရန်)
+          upx --best ./bin/xray || echo "UPX xray failed"
+          upx --best ./bin/cloudflared || echo "UPX cloudflared failed"
+          
+          chmod +x ./bin/*
+          rm xray.zip
 
       - name: Create Archive
         run: |
-          # မလိုအပ်တဲ့ ဖိုင်တွေ မပါအောင် တိတိကျကျ ချုပ်ပါ
-          tar -czf Appwrite.tar.gz main.js package.json bin/
-          
-      - name: Upload Release
+          # ဖိုင်အားလုံး ရှိနေကြောင်း သေချာမှ tar လုပ်ပါ
+          if [ -f "main.js" ] && [ -d "bin" ]; then
+            tar -czvf Appwrite.tar.gz main.js package.json bin/
+          else
+            echo "❌ Required files are missing!"
+            exit 1
+          fi
+
+      - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "latest"
+          name: "Appwrite VLESS Build"
           files: Appwrite.tar.gz
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
